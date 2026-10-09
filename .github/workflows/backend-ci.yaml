@@ -1,84 +1,67 @@
-name: Backend Continuous Integration
-
-on:
-pull_request:
-branches:
-- main
-paths:
-- 'starter/backend/**'
-- '.github/workflows/backend-ci.yaml'
-workflow_dispatch:
-
-permissions:
-contents: read
-
-jobs:
-lint:
-name: Lint Backend
-runs-on: ubuntu-latest
-defaults:
-run:
-working-directory: starter/backend
-steps:
-- name: Checkout code
-uses: actions/checkout@v4
-
-```
-  - name: Setup Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.10'
-      cache: pipenv
-      cache-dependency-path: starter/backend/Pipfile.lock
-
-  - name: Install Pipenv
-    run: pip install pipenv
-
-  - name: Install dependencies
-    run: pipenv install --dev
-
-  - name: Run lint
-    run: pipenv run lint
-```
-
-test:
-name: Test Backend
-runs-on: ubuntu-latest
-defaults:
-run:
-working-directory: starter/backend
-steps:
-- name: Checkout code
-uses: actions/checkout@v4
-
-```
-  - name: Setup Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.10'
-      cache: pipenv
-      cache-dependency-path: starter/backend/Pipfile.lock
-
-  - name: Install Pipenv
-    run: pip install pipenv
-
-  - name: Install dependencies
-    run: pipenv install --dev
-
-  - name: Run tests
-    run: pipenv run test
-```
-
-build:
-name: Build Backend Docker Image
-needs: [lint, test]
-runs-on: ubuntu-latest
-steps:
-- name: Checkout code
-uses: actions/checkout@v4
-
-```
-  - name: Build Docker image
-    working-directory: starter/backend
-    run: docker build --tag mp-backend:ci .
-```
+name: Backend CI 
+ 
+on: 
+  workflow_dispatch: 
+  pull_request: 
+    branches: 
+      - main 
+ 
+defaults: 
+  run: 
+    working-directory: backend 
+ 
+jobs: 
+  Lint: 
+    runs-on: ubuntu-latest 
+    steps: 
+      - name: Checkout 
+        uses: actions/checkout@v4 
+      - name: Setup Python 
+        uses: actions/setup-python@v5 
+        with: 
+          python-version: "3.10" 
+      - name: Install dependencies 
+        run: | 
+          python -m pip install --upgrade pip 
+          pip install flake8 
+          pip install pipenv 
+          pipenv install 
+      - name: Run linter 
+        run: pipenv run lint 
+ 
+  Test: 
+    runs-on: ubuntu-latest 
+    steps: 
+      - name: Checkout 
+        uses: actions/checkout@v4 
+      - name: Setup Python 
+        uses: actions/setup-python@v5 
+        with: 
+          python-version: "3.10" 
+      - name: Install dependencies 
+        run: | 
+          python -m pip install --upgrade pip 
+          pip install pipenv 
+          pipenv install 
+      - name: Run the tests 
+        run: pipenv run test 
+ 
+  Build: 
+    needs: [Lint, Test] 
+    runs-on: ubuntu-latest 
+    steps: 
+      - name: Checkout 
+        uses: actions/checkout@v4 
+      - name: Setup Python 
+        uses: actions/setup-python@v5 
+        with: 
+          python-version: "3.10" 
+      - name: Install dependencies 
+        run: | 
+          python -m pip install --upgrade pip 
+          pip install pipenv 
+          pipenv install 
+      - name: Build docker image 
+        run: docker build --tag mp-backend:latest . 
+      - name: Run container 
+        run: docker run -p 5000:5000 --name mp-backend -d mp-backend
