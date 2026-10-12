@@ -5,13 +5,11 @@ name = "pypi"
 
 [packages]
 flask = "*"
-uwsgi = "*"
 flask-cors = "*"
 pytest = "*"
 
 [dev-packages]
 black = "*"
-flake8 = "*"
 coverage = "*"
 
 [requires]
