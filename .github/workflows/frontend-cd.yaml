@@ -1,0 +1,70 @@
+
+name: Frontend CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "starter/frontend/**"
+      - "k8s/**"
+      - ".github/workflows/frontend-cd.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+  ECR_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            --build-arg REACT_APP_MOVIE_API_URL="${{ vars.MOVIE_API_URL }}" \
+            -t "${{ steps.ecr.outputs.registry }}/${ECR_REPOSITORY}:${GITHUB_SHA}" \
+            ./starter/frontend
+
+      - name: Push frontend image
+        run: |
+          docker push \
+            "${{ steps.ecr.outputs.registry }}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER_NAME"
+
+      - name: Update frontend image
+        run: |
+          kubectl set image deployment/frontend \
+            frontend="${{ steps.ecr.outputs.registry }}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
+      - name: Verify frontend rollout
+        run: |
+          kubectl rollout status deployment/frontend --timeout=300s
+          kubectl get pods
+          kubectl get services
