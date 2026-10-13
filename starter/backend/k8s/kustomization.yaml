@@ -4,3 +4,10 @@ resources:
   - service.yaml
   - deployment.yaml
 namespace: default
+images:
+  - name: backend
+    newName: 331730297002.dkr.ecr.ap-southeast-2.amazonaws.com/backend
+    newTag: latest
+  - name: frontend
+    newName: 331730297002.dkr.ecr.ap-southeast-2.amazonaws.com/frontend
+    newTag: latest
