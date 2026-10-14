@@ -1,14 +1,18 @@
 
-name: Frontend CD
+
+name: Frontend Continuous Deployment
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "starter/frontend/**"
-      - "k8s/**"
-      - ".github/workflows/frontend-cd.yaml"
+    branches:
+      - main
   workflow_dispatch:
+    inputs:
+      fail_test:
+        description: "Set true to verify that a failing test blocks release"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,9 +23,56 @@ env:
   ECR_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
 
 jobs:
-  build-and-deploy:
+  lint:
+    name: Frontend Lint
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.14.2"
+          cache: npm
+          cache-dependency-path: starter/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: starter/frontend
+        run: npm ci
+
+      - name: Run lint
+        working-directory: starter/frontend
+        run: npm run lint
+
+  test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    env:
+      FAIL_TEST: ${{ inputs.fail_test == true && 'true' || 'false' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.14.2"
+          cache: npm
+          cache-dependency-path: starter/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: starter/frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: starter/frontend
+        run: npm test -- --watchAll=false
+
+  release:
+    name: Build, Publish, and Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [lint, test]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -58,12 +109,12 @@ jobs:
             --region "$AWS_REGION" \
             --name "$EKS_CLUSTER_NAME"
 
-      - name: Update frontend image
+      - name: Deploy frontend image
         run: |
           kubectl set image deployment/frontend \
             frontend="${{ steps.ecr.outputs.registry }}/${ECR_REPOSITORY}:${GITHUB_SHA}"
 
-      - name: Verify frontend rollout
+      - name: Wait for frontend rollout
         run: |
           kubectl rollout status deployment/frontend --timeout=300s
           kubectl get pods
