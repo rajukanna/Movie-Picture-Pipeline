@@ -68,6 +68,8 @@ jobs:
       - name: Run tests
         working-directory: starter/frontend
         run: npm test -- --watchAll=false
+        env:
+          CI: true
 
   release:
     name: Build, Publish, and Deploy Frontend

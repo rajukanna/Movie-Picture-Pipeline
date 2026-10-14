@@ -45,7 +45,7 @@ jobs:
 
       - name: Run lint
         working-directory: starter/backend
-        run: pipenv run black --check .
+        run: pipenv run lint
 
   test:
     name: Backend Tests
@@ -77,7 +77,7 @@ jobs:
 
       - name: Run tests
         working-directory: starter/backend
-        run: pipenv run pytest
+        run: pipenv run test
 
   release:
     name: Build, Publish, and Deploy Backend
